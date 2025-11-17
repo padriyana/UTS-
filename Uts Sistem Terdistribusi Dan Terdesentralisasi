@@ -1,0 +1,44 @@
+# **CAP, BASE, GraphQL & PostgreSQL Streaming Replication**  
+*Jawaban Kreatif & Ringkas – Siap Deploy!*
+
+---
+
+## **1. Teorema CAP & BASE + Contoh Nyata**
+
+| **CAP Theorem** *(Brewer, 2000)* | **BASE Philosophy** *(eBay, ~2008)* |
+|----------------------------------|-------------------------------------|
+| **C**onsistency – Semua node lihat data sama | **B**asically **A**vailable – Sistem selalu responsif |
+| **A**vailability – Setiap request dapat respons | **S**oft-state – Data sementara inkonsisten |
+| **P**artition Tolerance – Sistem tetap jalan saat jaringan terpisah | **E**ventual Consistency – Akhirnya konsisten |
+
+> **Keterkaitan**:  
+> **CAP** bilang: *Pilih 2 dari 3 (CP, AP, CA)*.  
+> **BASE** adalah *resep AP* → **tinggalkan C ketat, ganti dengan E (eventual consistency)**.
+
+### **Contoh yang Pernah Saya Gunakan**  
+> **Aplikasi E-Commerce (Microservices + Kafka + Cassandra)**  
+- **Partition?** Ya → jaringan antar DC sering delay.  
+- **Pilih AP** → User tetap bisa *add to cart* meski stock sync delay 2 detik.  
+- **BASE dijalankan**:  
+  - Stock di **Cassandra** (AP) → *eventual consistency* via Kafka.  
+  - Order tetap diterima → **Basically Available**.  
+  - Setelah 3 detik, stock sync → **Eventual Consistency**.  
+- **Bukan CP**, karena jika pakai PostgreSQL sync, order bisa gagal saat jaringan partition.
+
+> **CAP = Batas Fisik. BASE = Strategi Bisnis.**
+
+---
+
+## **2. GraphQL Komunikasi Antar Proses di Sistem Terdistribusi**
+
+```mermaid
+graph TD
+    A[Client] -->|GraphQL Query| B[API Gateway]
+    B --> C[Service A<br>(User Service)]
+    B --> D[Service B<br>(Order Service)]
+    B --> E[Service C<br>(Inventory Service)]
+    C -->|gRPC| F[(User DB)]
+    D -->|Kafka| G[(Order DB)]
+    E -->|HTTP| H[(Inventory Cache)]
+    B -->|Batch & Stitch| I[GraphQL Response]
+    I --> A
